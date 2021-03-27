@@ -1,6 +1,6 @@
 # Docker Redoc CLI
 
-Docker Image for [ReDoc](https://github.com/Rebilly/ReDoc)'s Command Line Interface**
+**Docker Image for [ReDoc](https://github.com/Rebilly/ReDoc)'s Command Line Interface**
 
 ## Installation
 
