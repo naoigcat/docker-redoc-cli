@@ -2,6 +2,9 @@
 
 **Docker Image for [ReDoc](https://github.com/Rebilly/ReDoc)'s Command Line Interface**
 
+-   [dockerhub](https://hub.docker.com/r/naoigcat/redoc-cli)
+-   [github](https://github.com/naoigcat/docker-redoc-cli)
+
 ## Installation
 
 ```sh
