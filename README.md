@@ -1,9 +1,11 @@
 # Docker Redoc CLI
 
-**Docker Image for [ReDoc](https://github.com/Rebilly/ReDoc)'s Command Line Interface**
+[![Docker Builds](https://github.com/naoigcat/docker-redoc-cli/actions/workflows/docker.yml/badge.svg)](https://github.com/naoigcat/docker-redoc-cli/actions/workflows/docker.yml)
 
--   [dockerhub](https://hub.docker.com/r/naoigcat/redoc-cli)
--   [github](https://github.com/naoigcat/docker-redoc-cli)
+[![GitHub Stars](https://img.shields.io/github/stars/naoigcat/docker-redoc-cli.svg)](https://github.com/naoigcat/docker-redoc-cli/stargazers)
+[![Docker Pulls](https://img.shields.io/docker/pulls/naoigcat/redoc-cli)](https://hub.docker.com/r/naoigcat/redoc-cli)
+
+**Docker Image for [ReDoc](https://github.com/Rebilly/ReDoc)'s Command Line Interface**
 
 ## Installation
 
