@@ -11,6 +11,7 @@ end
   desc "Update #{name} version"
   task name, [:times, :version] do |task, arguments|
     require "pathname"
+    arguments.with_defaults(times: 1)
     branches = IO.popen("git branch --format='%(refname:short)'", &:readlines).map(&:chomp).reverse
     (arguments.version ? 1 : arguments.times.to_i).times do
       branches.each.with_index do |branch, index|
