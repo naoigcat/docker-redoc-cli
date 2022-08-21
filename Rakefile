@@ -21,7 +21,7 @@ end
         if index.zero?
           file.read.sub(/(?<=redoc-cli@)\d+\.\d+\.\d+/) do |match|
             major, minor, patch = match.split(".")
-            eval <<~CODE, binding, __FILE__, __LINE__ + 2 # rubocop:disable Security/Eval
+            eval <<~CODE, binding, __FILE__, __LINE__ + 1 # rubocop:disable Security/Eval
               # major = arguments.version || (major.to_i + 1)
               #{task.name} = arguments.version || (#{task.name}.to_i + 1)
             CODE
