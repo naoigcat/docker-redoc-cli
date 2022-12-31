@@ -1,0 +1,77 @@
+name: Bump Version
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ssh-key: ${{ secrets.SSH_KEY }}
+          fetch-depth: 0
+      -
+        name: Setup Node.js with version 18
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      -
+        name: Get Node.js versions
+        run: |
+          echo NODE_VERSIONS=$(
+            curl -fsSL https://raw.githubusercontent.com/nodejs/Release/main/schedule.json |
+            jq -r ". | to_entries[] | select(.value.lts and .value.start <= \"$(date +%Y-%m-%d)\" and .value.end >= \"$(date +%Y-%m-%d)\") | .key | sub(\"v\";\"\")"
+          ) | tee /dev/stderr >> $GITHUB_ENV
+      -
+        name: Get Redoc CLI versions
+        run: |
+          echo git tag --sort -authordate | tee /dev/stderr | source /dev/stdin
+          echo PACKAGE_VERSIONS=$(
+            npm view redoc-cli@\>$(git tag --sort -authordate | grep "node$(echo $NODE_VERSIONS | cut -d\  -f1)\$" | head -n1 | sed -e "s/-node[0-9]\+//") --json | jq -r ".[]._id"
+          ) | tee /dev/stderr >> $GITHUB_ENV
+      -
+        name: Bump
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          echo git checkout -b node$(echo $NODE_VERSIONS | cut -d\  -f1) $(git tag --sort -authordate | grep "node$(echo $NODE_VERSIONS | cut -d\  -f1)$" | head -n1) | tee /dev/stderr | source /dev/stdin
+          for node in $(echo $NODE_VERSIONS | cut -d\  -f2-)
+          do
+            if git rev-parse $(git describe --tags | sed -e "s/[0-9]\+\$/$node/") >/dev/null 2>&1
+            then
+              echo git branch node$node $(git describe --tags | sed -e "s/[0-9]\+\$/$node/") | tee /dev/stderr | source /dev/stdin
+            else
+              echo sed -i -e \"s/node:[0-9]\\+-alpine/node:$node-alpine/\" Dockerfile | tee /dev/stderr | source /dev/stdin
+              echo git commit -am \"Bump Node.js to $node\" | tee /dev/stderr | source /dev/stdin
+              echo git checkout -b node$node | tee /dev/stderr | source /dev/stdin
+              echo git checkout node$(echo $NODE_VERSIONS | cut -d\  -f1) | tee /dev/stderr | source /dev/stdin
+            fi
+          done
+          echo git merge --no-ff --no-commit main | tee /dev/stderr | source /dev/stdin
+          echo git checkout HEAD -- Dockerfile | tee /dev/stderr | source /dev/stdin
+          echo git commit -m \"Merge branch 'main' to node$(echo $NODE_VERSIONS | cut -d\  -f1)\" | tee /dev/stderr | source /dev/stdin
+          for package in $PACKAGE_VERSIONS
+          do
+            echo git checkout node$(echo $NODE_VERSIONS | cut -d\  -f1) | tee /dev/stderr | source /dev/stdin
+            echo sed -i -e \"s/redoc-cli@.*/$package/\" Dockerfile | tee /dev/stderr | source /dev/stdin
+            echo git commit -am \"Bump redoc-cli to ${package##redoc-cli@}\" | tee /dev/stderr | source /dev/stdin
+            echo git tag ${package##redoc-cli@}-node$(echo $NODE_VERSIONS | cut -d\  -f1) | tee /dev/stderr | source /dev/stdin
+            echo git push origin $(git describe --tags) | tee /dev/stderr | source /dev/stdin
+            sleep 60
+            for node in $(echo $NODE_VERSIONS | cut -d\  -f2-)
+            do
+              echo git checkout node$node | tee /dev/stderr | source /dev/stdin
+              echo git merge --no-ff --no-edit node$(echo $NODE_VERSIONS | sed -e "s/\([0-9]\+ \)*\([0-9]\+\) $node.*/\2/") | tee /dev/stderr | source /dev/stdin
+              echo git tag ${package##redoc-cli@}-node$node | tee /dev/stderr | source /dev/stdin
+              echo git push origin $(git describe --tags) | tee /dev/stderr | source /dev/stdin
+              sleep 60
+            done
+          done
+          echo git checkout main | tee /dev/stderr | source /dev/stdin
+          echo git merge --ff node$(echo $NODE_VERSIONS | rev | cut -d\  -f1 | rev) | tee /dev/stderr | source /dev/stdin
+          echo git push origin main | tee /dev/stderr | source /dev/stdin
