@@ -76,7 +76,8 @@ jobs:
               echo git checkout node$node | tee /dev/stderr | source /dev/stdin
               previous=$(echo $NODE_VERSIONS | sed -e "s/\([0-9]\+ \)*\([0-9]\+\) $node.*/\2/")
               echo git merge --no-ff --no-commit node$previous | tee /dev/stderr | source /dev/stdin
-              echo git commit --reuse-message node$previous | tee /dev/stderr | source /dev/stdin
+              echo sed -i -e \"s/node:[0-9]\\+-alpine/node:$node-alpine/\" Dockerfile | tee /dev/stderr | source /dev/stdin
+              echo git commit --all --reuse-message node$previous | tee /dev/stderr | source /dev/stdin
               echo git tag ${package##redoc-cli@}-node$node | tee /dev/stderr | source /dev/stdin
               echo git push origin $(git describe --tags) | tee /dev/stderr | source /dev/stdin
               sleep 60
