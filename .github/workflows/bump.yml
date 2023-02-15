@@ -32,7 +32,7 @@ jobs:
         run: |
           echo git tag --sort -authordate | tee /dev/stderr | source /dev/stdin
           echo PACKAGE_VERSIONS=$(
-            npm view -s redoc-cli@\>$(git tag --sort -authordate | grep "node$(echo $NODE_VERSIONS | cut -d\  -f1)\$" | head -n1 | sed -e "s/-node[0-9]\+//") version
+            npm view -s redoc-cli@\>$(git tag --sort -authordate | grep "node$(echo $NODE_VERSIONS | cut -d\  -f1)\$" | head -n1 | sed -e "s/-node[0-9]\+//") version | sed -e "s/redoc-cli@.* '\(.*\)'/\\1/"
           ) | tee /dev/stderr >> $GITHUB_ENV
       -
         name: Bump
