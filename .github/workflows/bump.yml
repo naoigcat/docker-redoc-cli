@@ -52,9 +52,17 @@ jobs:
               echo git checkout node$(echo $NODE_VERSIONS | cut -d\  -f1) | tee /dev/stderr | source /dev/stdin
             fi
           done
-          echo git merge --no-ff --no-commit main | tee /dev/stderr | source /dev/stdin
-          echo git checkout HEAD -- Dockerfile | tee /dev/stderr | source /dev/stdin
-          echo git commit -m \"Merge branch 'main' to node$(echo $NODE_VERSIONS | cut -d\  -f1)\" | tee /dev/stderr | source /dev/stdin
+          echo sed -i -e \"s/node:[0-9]*/node:$(echo $NODE_VERSIONS | rev | cut -d\  -f1 | rev)/\" Dockerfile | tee /dev/stderr | source /dev/stdin
+          echo git commit -am \"Change node version\" | tee /dev/stderr | source /dev/stdin
+          if test $(git diff --numstat main | wc -l) -gt 0
+          then
+            echo git reset --hard HEAD~ | tee /dev/stderr | source /dev/stdin
+            echo git merge --no-ff --no-commit main | tee /dev/stderr | source /dev/stdin
+            echo git checkout HEAD -- Dockerfile | tee /dev/stderr | source /dev/stdin
+            echo git commit -m \"Merge branch 'main' to $(git rev-parse --abbrev-ref @)\" | tee /dev/stderr | source /dev/stdin
+          else
+            echo git reset --hard HEAD~ | tee /dev/stderr | source /dev/stdin
+          fi
           for package in $PACKAGE_VERSIONS
           do
             echo git checkout node$(echo $NODE_VERSIONS | cut -d\  -f1) | tee /dev/stderr | source /dev/stdin
