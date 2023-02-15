@@ -32,7 +32,7 @@ jobs:
         run: |
           echo git tag --sort -authordate | tee /dev/stderr | source /dev/stdin
           echo PACKAGE_VERSIONS=$(
-            npm view redoc-cli@\>$(git tag --sort -authordate | grep "node$(echo $NODE_VERSIONS | cut -d\  -f1)\$" | head -n1 | sed -e "s/-node[0-9]\+//") --json | jq -r ".[]._id"
+            npm view -s redoc-cli@\>$(git tag --sort -authordate | grep "node$(echo $NODE_VERSIONS | cut -d\  -f1)\$" | head -n1 | sed -e "s/-node[0-9]\+//") version
           ) | tee /dev/stderr >> $GITHUB_ENV
       -
         name: Bump
@@ -58,7 +58,7 @@ jobs:
           for package in $PACKAGE_VERSIONS
           do
             echo git checkout node$(echo $NODE_VERSIONS | cut -d\  -f1) | tee /dev/stderr | source /dev/stdin
-            echo sed -i -e \"s/redoc-cli@.*/$package/\" Dockerfile | tee /dev/stderr | source /dev/stdin
+            echo sed -i -e \"s/redoc-cli@.*/redoc-cli@$package/\" Dockerfile | tee /dev/stderr | source /dev/stdin
             echo git commit -am \"Bump redoc-cli to ${package##redoc-cli@}\" | tee /dev/stderr | source /dev/stdin
             echo git tag ${package##redoc-cli@}-node$(echo $NODE_VERSIONS | cut -d\  -f1) | tee /dev/stderr | source /dev/stdin
             echo git push origin $(git describe --tags) | tee /dev/stderr | source /dev/stdin
