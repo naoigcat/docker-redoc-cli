@@ -37,6 +37,7 @@ jobs:
       -
         name: Bump
         run: |
+          test -z "$PACKAGE_VERSIONS" && exit 0 || :
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           echo git checkout -b node$(echo $NODE_VERSIONS | cut -d\  -f1) $(git tag --sort -authordate | grep "node$(echo $NODE_VERSIONS | cut -d\  -f1)$" | head -n1) | tee /dev/stderr | source /dev/stdin
