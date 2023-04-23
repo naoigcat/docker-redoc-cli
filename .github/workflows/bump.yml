@@ -40,20 +40,6 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           echo git checkout -b node$(echo $NODE_VERSIONS | cut -d\  -f1) $(git tag --sort -authordate | grep "node$(echo $NODE_VERSIONS | cut -d\  -f1)$" | head -n1) | tee /dev/stderr | source /dev/stdin
-          for node in $(echo $NODE_VERSIONS | cut -d\  -f2-)
-          do
-            if git rev-parse $(git describe --tags | sed -e "s/[0-9]\+\$/$node/") >/dev/null 2>&1
-            then
-              echo git branch node$node $(git describe --tags | sed -e "s/[0-9]\+\$/$node/") | tee /dev/stderr | source /dev/stdin
-            else
-              echo sed -i -e \"s/node:[0-9]\+-slim/node:$node-slim/\" Dockerfile | tee /dev/stderr | source /dev/stdin
-              echo git commit -am \"Bump Node.js to $node\" | tee /dev/stderr | source /dev/stdin
-              echo git checkout -b node$node | tee /dev/stderr | source /dev/stdin
-              echo git checkout node$(echo $NODE_VERSIONS | cut -d\  -f1) | tee /dev/stderr | source /dev/stdin
-            fi
-          done
-          echo sed -i -e \"s/node:[0-9]*/node:$(echo $NODE_VERSIONS | rev | cut -d\  -f1 | rev)/\" Dockerfile | tee /dev/stderr | source /dev/stdin
-          echo git commit -am \"Change node version\" | tee /dev/stderr | source /dev/stdin
           if test $(git diff --numstat main | wc -l) -gt 0
           then
             echo git reset --hard HEAD~ | tee /dev/stderr | source /dev/stdin
@@ -73,7 +59,20 @@ jobs:
             sleep 60
             for node in $(echo $NODE_VERSIONS | cut -d\  -f2-)
             do
-              echo git checkout node$node | tee /dev/stderr | source /dev/stdin
+              if test $(git branch --list node$node | wc -l) -gt 0
+              then
+                if git rev-parse $(git describe --tags | sed -e "s/[0-9]\+\$/$node/") >/dev/null 2>&1
+                then
+                  echo git branch node$node $(git describe --tags | sed -e "s/[0-9]\+\$/$node/") | tee /dev/stderr | source /dev/stdin
+                else
+                  echo sed -i -e \"s/node:[0-9]\+-slim/node:$node-slim/\" Dockerfile | tee /dev/stderr | source /dev/stdin
+                  echo git commit -am \"Bump Node.js to $node\" | tee /dev/stderr | source /dev/stdin
+                  echo git checkout -b node$node | tee /dev/stderr | source /dev/stdin
+                  echo git checkout node$(echo $NODE_VERSIONS | cut -d\  -f1) | tee /dev/stderr | source /dev/stdin
+                fi
+              else
+                echo git checkout node$node | tee /dev/stderr | source /dev/stdin
+              fi
               previous=$(echo $NODE_VERSIONS | sed -e "s/\([0-9]\+ \)*\([0-9]\+\) $node.*/\2/")
               echo git merge --no-ff --no-commit node$previous | tee /dev/stderr | source /dev/stdin
               echo sed -i -e \"s/node:[0-9]\+-slim/node:$node-slim/\" Dockerfile | tee /dev/stderr | source /dev/stdin
