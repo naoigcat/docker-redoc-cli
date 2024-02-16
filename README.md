@@ -15,7 +15,7 @@ docker pull naoigcat/redoc-cli
 
 ## Usage
 
-See [redoc-cli](https://github.com/Redocly/redoc/blob/master/cli/README.md#usage) for available commands.
+See [redoc-cli](https://github.com/Redocly/redoc/blob/v2.0.0/cli/README.md#usage) for available commands.
 
 It is recommended to create an alias:
 
