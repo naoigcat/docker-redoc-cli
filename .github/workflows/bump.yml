@@ -27,8 +27,10 @@ jobs:
       -
         name: Get Node.js versions
         shell: bash
+        env:
+          TODAY: ${{ vars.TODAY }}
         run: |
-          TODAY=2023-03-07
+          TODAY="${TODAY:-$(date +%F)}"
           echo NODE_VERSIONS=$(
             curl -fsSL https://raw.githubusercontent.com/nodejs/Release/main/schedule.json |
             jq -r ". | to_entries[] | select(.value.lts and .value.start <= \"$TODAY\" and .value.end >= \"$TODAY\") | .key | sub(\"v\";\"\")"
