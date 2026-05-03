@@ -37,9 +37,9 @@ jobs:
         name: Get Redoc CLI versions
         shell: bash
         run: |
-          echo git tag --sort -authordate | tee /dev/stderr | source /dev/stdin
+          echo git tag --sort -v:refname | tee /dev/stderr | source /dev/stdin
           echo PACKAGE_VERSIONS=$(
-            npm view -s redoc-cli@\>$(git tag --sort -authordate | grep "node$(echo $NODE_VERSIONS | cut -d\  -f1)\$" | head -n1 | sed -e "s/-node[0-9]\+//") version | sed -e "s/redoc-cli@.* '\(.*\)'/\\1/"
+            npm view -s redoc-cli@\>$(git tag --sort -v:refname | grep "node$(echo $NODE_VERSIONS | cut -d\  -f1)\$" | head -n1 | sed -e "s/-node[0-9]\+//") version | sed -e "s/redoc-cli@.* '\(.*\)'/\\1/"
           ) | tee /dev/stderr >> $GITHUB_ENV
       -
         name: Bump
@@ -47,7 +47,7 @@ jobs:
           test -z "$PACKAGE_VERSIONS" && exit 0 || :
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          echo git checkout -b node$(echo $NODE_VERSIONS | cut -d\  -f1) $(git tag --sort -authordate | grep "node$(echo $NODE_VERSIONS | cut -d\  -f1)$" | head -n1) | tee /dev/stderr | source /dev/stdin
+          echo git checkout -b node$(echo $NODE_VERSIONS | cut -d\  -f1) $(git tag --sort -v:refname | grep "node$(echo $NODE_VERSIONS | cut -d\  -f1)$" | head -n1) | tee /dev/stderr | source /dev/stdin
           if test $(git diff --numstat main | wc -l) -gt 0
           then
             echo git reset --hard HEAD~ | tee /dev/stderr | source /dev/stdin
