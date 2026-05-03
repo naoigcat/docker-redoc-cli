@@ -40,9 +40,22 @@ jobs:
         shell: bash
         run: |
           echo git tag --sort -v:refname | tee /dev/stderr | source /dev/stdin
-          echo PACKAGE_VERSIONS=$(
+          package_versions=$(
             npm view -s redoc-cli@\>$(git tag --sort -v:refname | grep "node$(echo $NODE_VERSIONS | cut -d\  -f1)\$" | head -n1 | sed -e "s/-node[0-9]\+//") version | sed -e "s/redoc-cli@.* '\(.*\)'/\\1/"
-          ) | tee /dev/stderr >> $GITHUB_ENV
+          )
+          if test -z "$package_versions"
+          then
+            latest_package_version=$(npm view -s redoc-cli version)
+            for node in $NODE_VERSIONS
+            do
+              if ! git rev-parse "${latest_package_version}-node${node}" >/dev/null 2>&1
+              then
+                package_versions="$latest_package_version"
+                break
+              fi
+            done
+          fi
+          echo PACKAGE_VERSIONS=$package_versions | tee /dev/stderr >> $GITHUB_ENV
       -
         name: Bump
         run: |
@@ -62,14 +75,28 @@ jobs:
           for package in $PACKAGE_VERSIONS
           do
             echo git checkout node$(echo $NODE_VERSIONS | cut -d\  -f1) | tee /dev/stderr | source /dev/stdin
-            echo sed -i -e \"s/redoc-cli@.*/redoc-cli@$package/\" Dockerfile | tee /dev/stderr | source /dev/stdin
-            echo git commit -am \"Bump redoc-cli to ${package##redoc-cli@}\" | tee /dev/stderr | source /dev/stdin
-            echo git tag ${package##redoc-cli@}-node$(echo $NODE_VERSIONS | cut -d\  -f1) | tee /dev/stderr | source /dev/stdin
-            echo git push origin $(git describe --tags) | tee /dev/stderr | source /dev/stdin
-            sleep 60
+            if git rev-parse "${package##redoc-cli@}-node$(echo $NODE_VERSIONS | cut -d\  -f1)" >/dev/null 2>&1
+            then
+              echo "Tag ${package##redoc-cli@}-node$(echo $NODE_VERSIONS | cut -d\  -f1) already exists" | tee /dev/stderr
+            else
+              echo sed -i -e \"s/redoc-cli@.*/redoc-cli@$package/\" Dockerfile | tee /dev/stderr | source /dev/stdin
+              echo git commit -am \"Bump redoc-cli to ${package##redoc-cli@}\" | tee /dev/stderr | source /dev/stdin
+              echo git tag ${package##redoc-cli@}-node$(echo $NODE_VERSIONS | cut -d\  -f1) | tee /dev/stderr | source /dev/stdin
+              echo git push origin $(git describe --tags) | tee /dev/stderr | source /dev/stdin
+              sleep 60
+            fi
             for node in $(echo $NODE_VERSIONS | cut -d\  -f2-)
             do
-              if test $(git branch --list node$node | wc -l) -gt 0
+              if git rev-parse "${package##redoc-cli@}-node$node" >/dev/null 2>&1
+              then
+                if test $(git branch --list node$node | wc -l) -gt 0
+                then
+                  echo git checkout node$node | tee /dev/stderr | source /dev/stdin
+                else
+                  echo git checkout -b node$node ${package##redoc-cli@}-node$node | tee /dev/stderr | source /dev/stdin
+                fi
+                continue
+              elif test $(git branch --list node$node | wc -l) -gt 0
               then
                 if git rev-parse $(git describe --tags | sed -e "s/[0-9]\+\$/$node/") >/dev/null 2>&1
                 then
