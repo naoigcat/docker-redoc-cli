@@ -79,7 +79,7 @@ jobs:
                   echo git checkout node$(echo $NODE_VERSIONS | cut -d\  -f1) | tee /dev/stderr | source /dev/stdin
                 fi
               else
-                echo git checkout node$node | tee /dev/stderr | source /dev/stdin
+                echo git checkout -b node$node $(git tag --sort -v:refname | grep "node$node$" | head -n1) | tee /dev/stderr | source /dev/stdin
               fi
               previous=$(echo $NODE_VERSIONS | sed -e "s/\([0-9]\+ \)*\([0-9]\+\) $node.*/\2/")
               echo git merge --no-ff --no-commit node$previous | tee /dev/stderr | source /dev/stdin
