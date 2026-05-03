@@ -1,4 +1,4 @@
-FROM node:18-slim
+FROM node:25-slim
 LABEL maintainer="naoigcat <17925623+naoigcat@users.noreply.github.com>"
 
 ENV NODE_ENV=production \
