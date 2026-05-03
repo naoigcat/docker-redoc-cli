@@ -26,6 +26,7 @@ jobs:
           package-manager-cache: false
       -
         name: Get Node.js versions
+        shell: bash
         run: |
           TODAY=2023-03-07
           echo NODE_VERSIONS=$(
@@ -34,6 +35,7 @@ jobs:
           ) | tee /dev/stderr >> $GITHUB_ENV
       -
         name: Get Redoc CLI versions
+        shell: bash
         run: |
           echo git tag --sort -authordate | tee /dev/stderr | source /dev/stdin
           echo PACKAGE_VERSIONS=$(
