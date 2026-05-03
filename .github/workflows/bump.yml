@@ -50,12 +50,12 @@ jobs:
           echo git checkout -b node$(echo $NODE_VERSIONS | cut -d\  -f1) $(git tag --sort -v:refname | grep "node$(echo $NODE_VERSIONS | cut -d\  -f1)$" | head -n1) | tee /dev/stderr | source /dev/stdin
           if test $(git diff --numstat main | wc -l) -gt 0
           then
-            echo git reset --hard HEAD~ | tee /dev/stderr | source /dev/stdin
+            echo git reset --hard HEAD | tee /dev/stderr | source /dev/stdin
             echo git merge --no-ff --no-commit main | tee /dev/stderr | source /dev/stdin
             echo git checkout HEAD -- Dockerfile | tee /dev/stderr | source /dev/stdin
             echo git commit -m \"Merge branch 'main' to $(git rev-parse --abbrev-ref @)\" | tee /dev/stderr | source /dev/stdin
           else
-            echo git reset --hard HEAD~ | tee /dev/stderr | source /dev/stdin
+            echo git reset --hard HEAD | tee /dev/stderr | source /dev/stdin
           fi
           for package in $PACKAGE_VERSIONS
           do
