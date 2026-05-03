@@ -23,6 +23,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 18
+          package-manager-cache: false
       -
         name: Get Node.js versions
         run: |
