@@ -19,12 +19,6 @@ jobs:
           ssh-key: ${{ secrets.SSH_KEY }}
           fetch-depth: 0
       -
-        name: Setup Node.js with version 18
-        uses: actions/setup-node@v6
-        with:
-          node-version: 18
-          package-manager-cache: false
-      -
         name: Get Node.js versions
         shell: bash
         env:
