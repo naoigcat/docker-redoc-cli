@@ -62,7 +62,8 @@ jobs:
           test -z "$PACKAGE_VERSIONS" && exit 0 || :
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          echo git checkout -b node$(echo $NODE_VERSIONS | cut -d\  -f1) $(git tag --sort -v:refname | grep "node$(echo $NODE_VERSIONS | cut -d\  -f1)$" | head -n1) | tee /dev/stderr | source /dev/stdin
+          first_node_version=$(echo $NODE_VERSIONS | cut -d\  -f1)
+          echo git checkout -b node$first_node_version $(git tag --sort -v:refname | grep "node$first_node_version\$" | head -n1) | tee /dev/stderr | source /dev/stdin
           if test $(git diff --numstat main | wc -l) -gt 0
           then
             echo git reset --hard HEAD | tee /dev/stderr | source /dev/stdin
@@ -74,14 +75,14 @@ jobs:
           fi
           for package in $PACKAGE_VERSIONS
           do
-            echo git checkout node$(echo $NODE_VERSIONS | cut -d\  -f1) | tee /dev/stderr | source /dev/stdin
-            if git rev-parse "${package##redoc-cli@}-node$(echo $NODE_VERSIONS | cut -d\  -f1)" >/dev/null 2>&1
+            echo git checkout node$first_node_version | tee /dev/stderr | source /dev/stdin
+            if git rev-parse "${package##redoc-cli@}-node$first_node_version" >/dev/null 2>&1
             then
-              echo "Tag ${package##redoc-cli@}-node$(echo $NODE_VERSIONS | cut -d\  -f1) already exists" | tee /dev/stderr
+              echo "Tag ${package##redoc-cli@}-node$first_node_version already exists" | tee /dev/stderr
             else
               echo sed -i -e \"s/redoc-cli@.*/redoc-cli@$package/\" Dockerfile | tee /dev/stderr | source /dev/stdin
               echo git commit -am \"Bump redoc-cli to ${package##redoc-cli@}\" | tee /dev/stderr | source /dev/stdin
-              echo git tag ${package##redoc-cli@}-node$(echo $NODE_VERSIONS | cut -d\  -f1) | tee /dev/stderr | source /dev/stdin
+              echo git tag ${package##redoc-cli@}-node$first_node_version | tee /dev/stderr | source /dev/stdin
               echo git push origin $(git describe --tags) | tee /dev/stderr | source /dev/stdin
               sleep 60
             fi
@@ -105,7 +106,7 @@ jobs:
                   echo sed -i -e \"s/node:[0-9]\+-slim/node:$node-slim/\" Dockerfile | tee /dev/stderr | source /dev/stdin
                   echo git commit -am \"Bump Node.js to $node\" | tee /dev/stderr | source /dev/stdin
                   echo git checkout -b node$node | tee /dev/stderr | source /dev/stdin
-                  echo git checkout node$(echo $NODE_VERSIONS | cut -d\  -f1) | tee /dev/stderr | source /dev/stdin
+                  echo git checkout node$first_node_version | tee /dev/stderr | source /dev/stdin
                 fi
               else
                 echo git checkout -b node$node $(git tag --sort -v:refname | grep "node$node$" | head -n1) | tee /dev/stderr | source /dev/stdin
