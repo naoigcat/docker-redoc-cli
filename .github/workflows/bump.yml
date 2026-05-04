@@ -42,7 +42,7 @@ jobs:
           echo git tag --sort -v:refname | tee /dev/stderr | source /dev/stdin
           npm --version
           package_versions=$(
-            npm view -s redoc-cli@\>$(git tag --sort -v:refname | grep "node$(echo $NODE_VERSIONS | cut -d\  -f1)\$" | head -n1 | sed -e "s/-node[0-9]\+//") version | sed -e "s/redoc-cli@.* '\(.*\)'/\\1/"
+            npm view -s redoc-cli@\>$(git tag --sort -v:refname | grep "node$(echo $NODE_VERSIONS | cut -d\  -f1)\$" | head -n1 | sed -e "s/-node[0-9]\+//") version | sed -e "s/redoc-cli@.* '\(.*\)'/\\1/" || :
           )
           if test -z "$package_versions"
           then
