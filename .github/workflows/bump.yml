@@ -68,8 +68,8 @@ jobs:
           then
             echo git reset --hard HEAD | tee /dev/stderr | source /dev/stdin
             echo git merge --no-ff --no-commit main | tee /dev/stderr | source /dev/stdin
-            echo git checkout HEAD -- Dockerfile | tee /dev/stderr | source /dev/stdin
-            echo git commit -m \"Merge branch 'main' to $(git rev-parse --abbrev-ref @)\" | tee /dev/stderr | source /dev/stdin
+            echo sed -i -e \"s/node:[0-9]\\+-slim/node:$first_node_version-slim/\" Dockerfile | tee /dev/stderr | source /dev/stdin
+            echo git commit --all --message \"Merge branch 'main' to $(git rev-parse --abbrev-ref @)\" | tee /dev/stderr | source /dev/stdin
           else
             echo git reset --hard HEAD | tee /dev/stderr | source /dev/stdin
           fi
@@ -81,7 +81,7 @@ jobs:
               echo "Tag ${package##redoc-cli@}-node$first_node_version already exists" | tee /dev/stderr
             else
               echo sed -i -e \"s/redoc-cli@.*/redoc-cli@$package/\" Dockerfile | tee /dev/stderr | source /dev/stdin
-              echo git commit -am \"Bump redoc-cli to ${package##redoc-cli@}\" | tee /dev/stderr | source /dev/stdin
+              echo git commit --all --message \"Bump redoc-cli to ${package##redoc-cli@}\" | tee /dev/stderr | source /dev/stdin
               echo git tag ${package##redoc-cli@}-node$first_node_version | tee /dev/stderr | source /dev/stdin
               echo git push origin $(git describe --tags) | tee /dev/stderr | source /dev/stdin
               sleep 60
@@ -103,8 +103,8 @@ jobs:
                 then
                   echo git branch node$node $(git describe --tags | sed -e "s/[0-9]\+\$/$node/") | tee /dev/stderr | source /dev/stdin
                 else
-                  echo sed -i -e \"s/node:[0-9]\+-slim/node:$node-slim/\" Dockerfile | tee /dev/stderr | source /dev/stdin
-                  echo git commit -am \"Bump Node.js to $node\" | tee /dev/stderr | source /dev/stdin
+                  echo sed -i -e \"s/node:[0-9]\\+-slim/node:$node-slim/\" Dockerfile | tee /dev/stderr | source /dev/stdin
+                  echo git commit --all --message \"Bump Node.js to $node\" | tee /dev/stderr | source /dev/stdin
                   echo git checkout -b node$node | tee /dev/stderr | source /dev/stdin
                   echo git checkout node$first_node_version | tee /dev/stderr | source /dev/stdin
                 fi
@@ -113,7 +113,7 @@ jobs:
               fi
               previous=$(echo $NODE_VERSIONS | sed -e "s/\([0-9]\+ \)*\([0-9]\+\) $node.*/\2/")
               echo git merge --no-ff --no-commit node$previous | tee /dev/stderr | source /dev/stdin
-              echo sed -i -e \"s/node:[0-9]\+-slim/node:$node-slim/\" Dockerfile | tee /dev/stderr | source /dev/stdin
+              echo sed -i -e \"s/node:[0-9]\\+-slim/node:$node-slim/\" Dockerfile | tee /dev/stderr | source /dev/stdin
               echo git commit --all --reuse-message node$previous | tee /dev/stderr | source /dev/stdin
               echo git tag ${package##redoc-cli@}-node$node | tee /dev/stderr | source /dev/stdin
               echo git push origin $(git describe --tags) | tee /dev/stderr | source /dev/stdin
