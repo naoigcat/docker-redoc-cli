@@ -2,8 +2,11 @@ name: Bump Version
 
 on:
   schedule:
-    - cron: "0 0 * * *"
+    - cron: "0 0 4 * *"
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   bump:
@@ -11,72 +14,117 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
         with:
           ssh-key: ${{ secrets.SSH_KEY }}
           fetch-depth: 0
       -
-        name: Setup Node.js with version 18
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-      -
         name: Get Node.js versions
+        shell: bash
+        env:
+          TODAY: ${{ vars.TODAY }}
         run: |
-          echo NODE_VERSIONS=$(
+          TODAY="${TODAY:-$(date +%F)}"
+          candidate_versions=$(
             curl -fsSL https://raw.githubusercontent.com/nodejs/Release/main/schedule.json |
-            jq -r ". | to_entries[] | select(.value.lts and .value.start <= \"$(date +%Y-%m-%d)\" and .value.end >= \"$(date +%Y-%m-%d)\") | .key | sub(\"v\";\"\")"
-          ) | tee /dev/stderr >> $GITHUB_ENV
+            jq -r ". | to_entries[] | select(.value.lts and .value.start <= \"$TODAY\" and .value.end >= \"$TODAY\") | .key | sub(\"v\";\"\")"
+          )
+          NODE_VERSIONS=
+          for major in $candidate_versions
+          do
+            if curl -sf --connect-timeout 10 "https://hub.docker.com/v2/repositories/library/node/tags/${major}-slim/" >/dev/null
+            then
+              NODE_VERSIONS="${NODE_VERSIONS:+$NODE_VERSIONS }$major"
+            else
+              echo "Skipping Node ${major}: docker.io/library/node:${major}-slim not found on Docker Hub" | tee /dev/stderr
+            fi
+          done
+          if test -z "$NODE_VERSIONS"
+          then
+            echo "::error::No active LTS majors left after filtering for existing node:*-slim images on Docker Hub"
+            exit 1
+          fi
+          echo NODE_VERSIONS=$NODE_VERSIONS | tee /dev/stderr >> $GITHUB_ENV
       -
         name: Get Redoc CLI versions
+        shell: bash
         run: |
-          echo git tag --sort -authordate | tee /dev/stderr | source /dev/stdin
-          echo PACKAGE_VERSIONS=$(
-            npm view -s redoc-cli@\>$(git tag --sort -authordate | grep "node$(echo $NODE_VERSIONS | cut -d\  -f1)\$" | head -n1 | sed -e "s/-node[0-9]\+//") version | sed -e "s/redoc-cli@.* '\(.*\)'/\\1/"
-          ) | tee /dev/stderr >> $GITHUB_ENV
+          echo git tag --sort -v:refname | tee /dev/stderr | source /dev/stdin
+          npm --version
+          package_versions=$(
+            npm view -s redoc-cli@\>$(git tag --sort -v:refname | grep "node$(echo $NODE_VERSIONS | cut -d\  -f1)\$" | head -n1 | sed -e "s/-node[0-9]\+//") version | sed -e "s/redoc-cli@.* '\(.*\)'/\\1/" || :
+          )
+          if test -z "$package_versions"
+          then
+            latest_package_version=$(npm view -s redoc-cli version)
+            for node in $NODE_VERSIONS
+            do
+              if ! git rev-parse "${latest_package_version}-node${node}" >/dev/null 2>&1
+              then
+                package_versions="$latest_package_version"
+                break
+              fi
+            done
+          fi
+          echo PACKAGE_VERSIONS=$package_versions | tee /dev/stderr >> $GITHUB_ENV
       -
         name: Bump
         run: |
+          test -z "$PACKAGE_VERSIONS" && exit 0 || :
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          echo git checkout -b node$(echo $NODE_VERSIONS | cut -d\  -f1) $(git tag --sort -authordate | grep "node$(echo $NODE_VERSIONS | cut -d\  -f1)$" | head -n1) | tee /dev/stderr | source /dev/stdin
-          for node in $(echo $NODE_VERSIONS | cut -d\  -f2-)
-          do
-            if git rev-parse $(git describe --tags | sed -e "s/[0-9]\+\$/$node/") >/dev/null 2>&1
-            then
-              echo git branch node$node $(git describe --tags | sed -e "s/[0-9]\+\$/$node/") | tee /dev/stderr | source /dev/stdin
-            else
-              echo sed -i -e \"s/node:[0-9]\\+-alpine/node:$node-alpine/\" Dockerfile | tee /dev/stderr | source /dev/stdin
-              echo git commit -am \"Bump Node.js to $node\" | tee /dev/stderr | source /dev/stdin
-              echo git checkout -b node$node | tee /dev/stderr | source /dev/stdin
-              echo git checkout node$(echo $NODE_VERSIONS | cut -d\  -f1) | tee /dev/stderr | source /dev/stdin
-            fi
-          done
-          echo sed -i -e \"s/node:[0-9]*/node:$(echo $NODE_VERSIONS | rev | cut -d\  -f1 | rev)/\" Dockerfile | tee /dev/stderr | source /dev/stdin
-          echo git commit -am \"Change node version\" | tee /dev/stderr | source /dev/stdin
+          first_node_version=$(echo $NODE_VERSIONS | cut -d\  -f1)
+          echo git checkout -b node$first_node_version $(git tag --sort -v:refname | grep "node$first_node_version\$" | head -n1) | tee /dev/stderr | source /dev/stdin
           if test $(git diff --numstat main | wc -l) -gt 0
           then
-            echo git reset --hard HEAD~ | tee /dev/stderr | source /dev/stdin
+            echo git reset --hard HEAD | tee /dev/stderr | source /dev/stdin
             echo git merge --no-ff --no-commit main | tee /dev/stderr | source /dev/stdin
-            echo git checkout HEAD -- Dockerfile | tee /dev/stderr | source /dev/stdin
-            echo git commit -m \"Merge branch 'main' to $(git rev-parse --abbrev-ref @)\" | tee /dev/stderr | source /dev/stdin
+            echo sed -i -e \"s/node:[0-9]\\+-slim/node:$first_node_version-slim/\" Dockerfile | tee /dev/stderr | source /dev/stdin
+            echo git commit --all --message \"Merge branch 'main' to $(git rev-parse --abbrev-ref @)\" | tee /dev/stderr | source /dev/stdin
           else
-            echo git reset --hard HEAD~ | tee /dev/stderr | source /dev/stdin
+            echo git reset --hard HEAD | tee /dev/stderr | source /dev/stdin
           fi
           for package in $PACKAGE_VERSIONS
           do
-            echo git checkout node$(echo $NODE_VERSIONS | cut -d\  -f1) | tee /dev/stderr | source /dev/stdin
-            echo sed -i -e \"s/redoc-cli@.*/redoc-cli@$package/\" Dockerfile | tee /dev/stderr | source /dev/stdin
-            echo git commit -am \"Bump redoc-cli to ${package##redoc-cli@}\" | tee /dev/stderr | source /dev/stdin
-            echo git tag ${package##redoc-cli@}-node$(echo $NODE_VERSIONS | cut -d\  -f1) | tee /dev/stderr | source /dev/stdin
-            echo git push origin $(git describe --tags) | tee /dev/stderr | source /dev/stdin
-            sleep 60
+            echo git checkout node$first_node_version | tee /dev/stderr | source /dev/stdin
+            if git rev-parse "${package##redoc-cli@}-node$first_node_version" >/dev/null 2>&1
+            then
+              echo "Tag ${package##redoc-cli@}-node$first_node_version already exists" | tee /dev/stderr
+            else
+              echo sed -i -e \"s/redoc-cli@[0-9.]\\+/redoc-cli@$package/\" Dockerfile | tee /dev/stderr | source /dev/stdin
+              echo git commit --all --message \"Bump redoc-cli to ${package##redoc-cli@}\" | tee /dev/stderr | source /dev/stdin
+              echo git tag ${package##redoc-cli@}-node$first_node_version | tee /dev/stderr | source /dev/stdin
+              echo git push origin $(git describe --tags) | tee /dev/stderr | source /dev/stdin
+              sleep 60
+            fi
             for node in $(echo $NODE_VERSIONS | cut -d\  -f2-)
             do
-              echo git checkout node$node | tee /dev/stderr | source /dev/stdin
+              if git rev-parse "${package##redoc-cli@}-node$node" >/dev/null 2>&1
+              then
+                if test $(git branch --list node$node | wc -l) -gt 0
+                then
+                  echo git checkout node$node | tee /dev/stderr | source /dev/stdin
+                else
+                  echo git checkout -b node$node ${package##redoc-cli@}-node$node | tee /dev/stderr | source /dev/stdin
+                fi
+                continue
+              elif test $(git branch --list node$node | wc -l) -gt 0
+              then
+                if git rev-parse $(git describe --tags | sed -e "s/[0-9]\+\$/$node/") >/dev/null 2>&1
+                then
+                  echo git branch node$node $(git describe --tags | sed -e "s/[0-9]\+\$/$node/") | tee /dev/stderr | source /dev/stdin
+                else
+                  echo sed -i -e \"s/node:[0-9]\\+-slim/node:$node-slim/\" Dockerfile | tee /dev/stderr | source /dev/stdin
+                  echo git commit --all --message \"Bump Node.js to $node\" | tee /dev/stderr | source /dev/stdin
+                  echo git checkout -b node$node | tee /dev/stderr | source /dev/stdin
+                  echo git checkout node$first_node_version | tee /dev/stderr | source /dev/stdin
+                fi
+              else
+                echo git checkout -b node$node $(git tag --sort -v:refname | grep "node$node$" | head -n1) | tee /dev/stderr | source /dev/stdin
+              fi
               previous=$(echo $NODE_VERSIONS | sed -e "s/\([0-9]\+ \)*\([0-9]\+\) $node.*/\2/")
               echo git merge --no-ff --no-commit node$previous | tee /dev/stderr | source /dev/stdin
-              echo sed -i -e \"s/node:[0-9]\\+-alpine/node:$node-alpine/\" Dockerfile | tee /dev/stderr | source /dev/stdin
+              echo sed -i -e \"s/node:[0-9]\\+-slim/node:$node-slim/\" Dockerfile | tee /dev/stderr | source /dev/stdin
               echo git commit --all --reuse-message node$previous | tee /dev/stderr | source /dev/stdin
               echo git tag ${package##redoc-cli@}-node$node | tee /dev/stderr | source /dev/stdin
               echo git push origin $(git describe --tags) | tee /dev/stderr | source /dev/stdin
