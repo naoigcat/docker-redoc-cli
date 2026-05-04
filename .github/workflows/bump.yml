@@ -25,10 +25,26 @@ jobs:
           TODAY: ${{ vars.TODAY }}
         run: |
           TODAY="${TODAY:-$(date +%F)}"
-          echo NODE_VERSIONS=$(
+          candidate_versions=$(
             curl -fsSL https://raw.githubusercontent.com/nodejs/Release/main/schedule.json |
             jq -r ". | to_entries[] | select(.value.lts and .value.start <= \"$TODAY\" and .value.end >= \"$TODAY\") | .key | sub(\"v\";\"\")"
-          ) | tee /dev/stderr >> $GITHUB_ENV
+          )
+          NODE_VERSIONS=
+          for major in $candidate_versions
+          do
+            if curl -sf --connect-timeout 10 "https://hub.docker.com/v2/repositories/library/node/tags/${major}-slim/" >/dev/null
+            then
+              NODE_VERSIONS="${NODE_VERSIONS:+$NODE_VERSIONS }$major"
+            else
+              echo "Skipping Node ${major}: docker.io/library/node:${major}-slim not found on Docker Hub" | tee /dev/stderr
+            fi
+          done
+          if test -z "$NODE_VERSIONS"
+          then
+            echo "::error::No active LTS majors left after filtering for existing node:*-slim images on Docker Hub"
+            exit 1
+          fi
+          echo NODE_VERSIONS=$NODE_VERSIONS | tee /dev/stderr >> $GITHUB_ENV
       -
         name: Get Redoc CLI versions
         shell: bash
